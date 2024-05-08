@@ -99,7 +99,7 @@
 				type: "GET",
 				dataType: "json",
 				success: function (data) {
-					hideCustomModal();
+					setTimeout(() => { hideCustomModal() }, 1000);
 					if (data.success) {
 						showToast(data.message, true);
 						updatePopulationCount();
@@ -122,7 +122,7 @@
 				type: "GET",
 				dataType: "json",
 				success: function (data) {
-					hideCustomModal();
+					setTimeout(() => { hideCustomModal() }, 1000);
 					if (data.success) {
 						updatePopulationCount();
 						showToast(data.message, true);
@@ -180,11 +180,13 @@
 		});
 
 		function showCustomModal(message) {
+			console.log('imma show');
 			$("#customMessage").text(message);
 			$("#customModal").modal('show');
 		}
 
 		function hideCustomModal() {
+			console.log('try to hide');
 			$("#customModal").modal('hide');
 		}
 	});
