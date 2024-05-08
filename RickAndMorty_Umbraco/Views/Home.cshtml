@@ -1,0 +1,205 @@
+﻿@using Umbraco.Cms.Web.Common.PublishedModels;
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.Home>
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+@{
+	Layout = "Master.cshtml";
+}
+
+<div>
+
+	<div class="container">
+
+		<div class="row text-center">
+
+			<!-- Current count of how many characters content nodes there are -->
+			<div class="col-12 mt-2 mb-2">
+				<h2>
+					Total population: <span id="populationCount">0</span>
+				</h2>
+			</div>
+
+			<div class="col-12 col-sm-6">
+
+				<div class="card">
+					<img src="./content/images/thanosClick.jpg" class="card-img-top" alt="Thanos">
+					<div class="card-body">
+						<h5 class="card-title">Restore balance</h5>
+						<p class="card-text">Delete 50% of the character content nodes at random</p>
+						<button class="btn btn-primary" id="thanosClick">
+							Thanos Click
+						</button>
+					</div>
+				</div>
+
+			</div>
+
+			<div class="col-12 col-sm-6">
+
+				<div class="card">
+					<img src="./content/images/nukeBomb.jpg" class="card-img-top" alt="Nuke">
+					<div class="card-body">
+						<h5 class="card-title">Drop a nuke</h5>
+						<p class="card-text">Delete all character content nodes</p>
+						<button class="btn btn-danger" id="nukeButton">
+							Drop a nuke
+						</button>
+					</div>
+				</div>
+
+
+
+			</div>
+
+			<div class="col-12 mt-5">
+				<!-- Imports all characters if there are none, otherwise imports those that are missing -->
+				<div class="card">
+					<img src="./content/images/restorePopulation.jpg" class="card-img-top" alt="Restore">
+					<div class="card-body">
+						<h5 class="card-title">Restore life</h5>
+						<p class="card-text">Restore the missing population</p>
+						<button class="btn btn-success" id="populateCharactersBtn">
+							Restore life
+						</button>
+					</div>
+				</div>
+
+			</div>
+
+		</div>
+
+		<div class="modal fade" id="customModal" tabindex="-1" role="dialog" aria-labelledby="customModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="customModalLabel"></h5> <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<p id="customMessage"></p>
+						<div class="spinner-border" role="status" aria-hidden="true" style="display: inline-block;"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+
+	</div>
+
+</div>
+
+<script type="text/javascript">
+	$(document).ready(function () {
+		updatePopulationCount();
+
+		$("#thanosClick").click(function () {
+			showCustomModal(`*click* ... I don't feel so good...`);
+			$.ajax({
+				url: "/api/Character/HalveRandomCharacters",
+				type: "GET",
+				dataType: "json",
+				success: function (data) {
+					hideCustomModal();
+					if (data.success) {
+						showToast(data.message, true);
+						updatePopulationCount();
+					} else {
+						showToast(data.message, false);
+					}
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					showToast(textStatus, errorThrown, false);
+					console.error("Error:", textStatus, errorThrown);
+					hideCustomModal();
+				}
+			});
+		});
+
+		$("#nukeButton").click(function () {
+			showCustomModal('Goodbye species...');
+			$.ajax({
+				url: "/api/Character/DeleteAllCharacters",
+				type: "GET",
+				dataType: "json",
+				success: function (data) {
+					hideCustomModal();
+					if (data.success) {
+						updatePopulationCount();
+						showToast(data.message, true);
+					} else {
+						showToast(data.message, false);
+					}
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					showToast(textStatus, errorThrown, false);
+					console.error("Error:", textStatus, errorThrown);
+					hideCustomModal();
+				}
+			});
+		});
+
+		$("#populateCharactersBtn").click(function () {
+			showCustomModal('Populating your world, please wait...');
+			$.ajax({
+				url: "/api/Character/PopulateCharacters",
+				type: "GET",
+				success: function (response) {
+					if (response.success) {
+						updatePopulationCount();
+						hideCustomModal();
+						showToast(data.message, true);
+					}
+					else {
+						showToast(data.message, false);
+					}
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					showToast(textStatus, errorThrown, false);
+					console.error("Error:", textStatus, errorThrown);
+					hideCustomModal();
+				}
+			});
+		});
+
+		// Update population count after success responses
+		function updatePopulationCount() {
+			$.ajax({
+				url: "/api/Character/Count",
+				type: "GET",
+				success: function (data) {
+					$("#populationCount").text(data);
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					console.error("Error:", textStatus, errorThrown);
+				}
+			});
+		}
+
+		$(".close").click(function () {
+			hideCustomModal();
+		});
+
+		function showCustomModal(message) {
+			$("#customMessage").text(message);
+			$("#customModal").modal('show');
+		}
+
+		function hideCustomModal() {
+			$("#customModal").modal('hide');
+		}
+	});
+
+	function showToast(message, success) {
+		console.log('showToast', message, success);
+		var toastClass = "toast";
+		if (success) {
+			toastClass += " bg-success text-white";
+		} else {
+			toastClass += " bg-danger text-white";
+		}
+
+		var toast = $('<div class="' + toastClass + '" role="alert" aria-live="assertive" aria-atomic="true">  <div class="toast-header"> <strong class="mr-auto">' + (success ? "Success!" : "Error!") + '</strong> <small>Just now</small> <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close"> <span aria-hidden="true">&times;</span> </button> </div> <div class="toast-body"> ' + message + ' </div> </div>');
+		toast.appendTo($('body'));
+		toast.toast('show');
+	}
+</script>
