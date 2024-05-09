@@ -4,8 +4,6 @@ using Umbraco.Cms.Web.Common.Controllers;
 using Newtonsoft.Json;
 using Microsoft.CodeAnalysis;
 using Umbraco.Cms.Core.Models;
-using Lucene.Net.Util;
-using Umbraco.Cms.Core;
 using Constants = Umbraco.Cms.Core.Constants;
 
 namespace RickAndMorty_Umbraco.Controllers
@@ -27,15 +25,23 @@ namespace RickAndMorty_Umbraco.Controllers
 			_contentTypeService = contentTypeService;
 		}
 
+		#region Main content methods
 		[HttpGet]
 		[Route("PopulateCharacters")]
-		public async Task<ResponseObject<bool>> PopulateCharacters(int totalRecords)
+		public async Task<ResponseObject<bool>> PopulateCharacters(int? totalRecords)
 		{
 			var rspObj = new ResponseObject<bool> { Data = false, Message = "", Success = false };
 
 			var httpClient = _httpClientFactory.CreateClient();
 			var characterUrl = "https://rickandmortyapi.com/api/character";
 			var characters = new List<Result>(); // List to collect all characters
+
+			int retrievedCharacters = 0;
+			// Check if totalRecords is null, set to int.MaxValue if so (to get all results)
+			if (totalRecords == null)
+			{
+				totalRecords = int.MaxValue;
+			}
 
 			do
 			{
@@ -51,10 +57,11 @@ namespace RickAndMorty_Umbraco.Controllers
 				var characterResponse = JsonConvert.DeserializeObject<CharacterResponse>(contentString);
 
 				characters.AddRange(characterResponse.Results); // Add characters from current page 
+				retrievedCharacters += characterResponse.Results.Count;
 
 				characterUrl = characterResponse?.Info?.Next; // Update URL for next page (if available)
 
-			} while (!string.IsNullOrWhiteSpace(characterUrl));
+			} while (retrievedCharacters < totalRecords && !string.IsNullOrWhiteSpace(characterUrl));
 
 			var rootFolder = _contentService.GetById(1061);
 			var homeFolder = _contentService.GetById(1062);
@@ -109,7 +116,7 @@ namespace RickAndMorty_Umbraco.Controllers
 				// Get all characters
 				var characters = GetCharacterNodes();
 
-				if (characters.Count() <= 1)
+				if (characters == null || !characters.Any() || characters.Count() <= 1)
 				{
 					rspObj.Message = "There are not enough characters to halve.";
 					return rspObj;
@@ -191,7 +198,9 @@ namespace RickAndMorty_Umbraco.Controllers
 			var characters = _contentService.GetPagedChildren(charactersFolder.Id, 0, int.MaxValue, out long total2);
 			return characters.ToList();
 		}
+		#endregion
 
+		#region Save media
 		public async Task<byte[]> DownloadImage(string imageUrl)
 		{
 			using (var httpClient = new HttpClient())
@@ -223,6 +232,7 @@ namespace RickAndMorty_Umbraco.Controllers
 			var mediaItem = await CreateMediaItem(data.Name + ".jpg", downloadedImage, 4403);
 			return mediaItem.Id;
 		}
+		#endregion
 	}
 
 	public class CharacterResponse
