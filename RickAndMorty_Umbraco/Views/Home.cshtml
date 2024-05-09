@@ -147,10 +147,10 @@
 					if (response.success) {
 						updatePopulationCount();
 						hideCustomModal();
-						showToast(data.message, true);
+						showToast(response.message, true);
 					}
 					else {
-						showToast(data.message, false);
+						showToast(response.message, false);
 					}
 				},
 				error: function (jqXHR, textStatus, errorThrown) {

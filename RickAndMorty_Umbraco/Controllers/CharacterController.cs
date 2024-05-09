@@ -4,6 +4,9 @@ using Umbraco.Cms.Web.Common.Controllers;
 using Newtonsoft.Json;
 using Microsoft.CodeAnalysis;
 using Umbraco.Cms.Core.Models;
+using Lucene.Net.Util;
+using Umbraco.Cms.Core;
+using Constants = Umbraco.Cms.Core.Constants;
 
 namespace RickAndMorty_Umbraco.Controllers
 {
@@ -13,11 +16,13 @@ namespace RickAndMorty_Umbraco.Controllers
 	{
 		private readonly IContentService _contentService;
 		private readonly IContentTypeService _contentTypeService;
+		private readonly IMediaService _mediaService;
 		private readonly IHttpClientFactory _httpClientFactory;
 
-		public CharacterController(IContentService contentService, IHttpClientFactory httpClientFactory, IContentTypeService contentTypeService)
+		public CharacterController(IContentService contentService, IMediaService mediaService, IHttpClientFactory httpClientFactory, IContentTypeService contentTypeService)
 		{
 			_contentService = contentService;
+			_mediaService = mediaService;
 			_httpClientFactory = httpClientFactory;
 			_contentTypeService = contentTypeService;
 		}
@@ -75,6 +80,9 @@ namespace RickAndMorty_Umbraco.Controllers
 					newCharacter.SetValue("characterStatus", character.Status);
 					newCharacter.SetValue("characterSpecies", character.Species);
 					newCharacter.SetValue("characterGender", character.Gender);
+
+					var image = await ProcessCharacterData(character);
+					newCharacter.SetValue("characterImage", image);
 
 					_contentService.SaveAndPublish(newCharacter);
 				}
@@ -182,6 +190,38 @@ namespace RickAndMorty_Umbraco.Controllers
 
 			var characters = _contentService.GetPagedChildren(charactersFolder.Id, 0, int.MaxValue, out long total2);
 			return characters.ToList();
+		}
+
+		public async Task<byte[]> DownloadImage(string imageUrl)
+		{
+			using (var httpClient = new HttpClient())
+			{
+				using (var response = await httpClient.GetAsync(imageUrl))
+				{
+					response.EnsureSuccessStatusCode();
+					return await response.Content.ReadAsByteArrayAsync();
+				}
+			}
+		}
+
+		public async Task<IMedia> CreateMediaItem(string imageName, byte[] imageData, int folderId)
+		{
+			var media = _mediaService.CreateMedia(imageName, folderId, Constants.Conventions.MediaTypes.Image);
+
+			using (var imageStream = new MemoryStream(imageData))
+			{
+				media.SetValue("umbracoFile", imageStream);
+			}
+
+			_mediaService.Save(media);
+			return media;
+		}
+
+		async Task<int> ProcessCharacterData(Result data)
+		{
+			var downloadedImage = await DownloadImage(data.Image);
+			var mediaItem = await CreateMediaItem(data.Name + ".jpg", downloadedImage, 4403);
+			return mediaItem.Id;
 		}
 	}
 
